@@ -151,6 +151,7 @@ struct arm_smccc_res sip_smc_soc_bus_div(u32 arg0, u32 arg1, u32 arg2)
 	res = __invoke_sip_fn_smc(RK_SIP_SOC_BUS_DIV, arg0, arg1, arg2);
 	return res;
 }
+EXPORT_SYMBOL_GPL(sip_smc_soc_bus_div);
 
 struct arm_smccc_res sip_smc_lastlog_request(void)
 {
