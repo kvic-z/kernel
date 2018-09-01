@@ -78,6 +78,8 @@
 
 #define IOMMU_INV_TLB_ENTIRE	BIT(4) /* invalidate tlb entire */
 
+static const struct iommu_ops rk_iommu_ops;
+
 static LIST_HEAD(iommu_dev_list);
 
 struct rk_iommu_domain {
@@ -1324,6 +1326,8 @@ static int rk_iommu_probe(struct platform_device *pdev)
 	if (!dma_dev)
 		dma_dev = &pdev->dev;
 
+	bus_set_iommu(&platform_bus_type, &rk_iommu_ops);
+
 	return 0;
 }
 
@@ -1382,25 +1386,11 @@ static struct platform_driver rk_iommu_driver = {
 
 static int __init rk_iommu_init(void)
 {
-	struct device_node *np;
-	int ret;
-
-	np = of_find_matching_node(NULL, rk_iommu_dt_ids);
-	if (!np)
-		return 0;
-
-	of_node_put(np);
-
-	ret = bus_set_iommu(&platform_bus_type, &rk_iommu_ops);
-	if (ret)
-		return ret;
-
 	return platform_driver_register(&rk_iommu_driver);
 }
 static void __exit rk_iommu_exit(void)
 {
 	platform_driver_unregister(&rk_iommu_driver);
-	platform_driver_unregister(&rk_iommu_domain_driver);
 }
 
 subsys_initcall(rk_iommu_init);
