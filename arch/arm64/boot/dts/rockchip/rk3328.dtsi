@@ -80,30 +80,41 @@
 			reg = <0x0 0x0>;
 			enable-method = "psci";
 			clocks = <&cru ARMCLK>;
+			next-level-cache = <&l2_cache>;
 			#cooling-cells = <2>; /* min followed by max */
 			dynamic-power-coefficient = <120>;
 			operating-points-v2 = <&cpu0_opp_table>;
+			sched-energy-costs = <&RK3328_CPU_COST_0 &RK3328_CLUSTER_COST_0>;
 		};
 		cpu1: cpu@1 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a53", "arm,armv8";
 			reg = <0x0 0x1>;
 			enable-method = "psci";
+			next-level-cache = <&l2_cache>;
 			operating-points-v2 = <&cpu0_opp_table>;
+			sched-energy-costs = <&RK3328_CPU_COST_0 &RK3328_CLUSTER_COST_0>;
 		};
 		cpu2: cpu@2 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a53", "arm,armv8";
 			reg = <0x0 0x2>;
 			enable-method = "psci";
+			next-level-cache = <&l2_cache>;
 			operating-points-v2 = <&cpu0_opp_table>;
+			sched-energy-costs = <&RK3328_CPU_COST_0 &RK3328_CLUSTER_COST_0>;
 		};
 		cpu3: cpu@3 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a53", "arm,armv8";
 			reg = <0x0 0x3>;
 			enable-method = "psci";
+			next-level-cache = <&l2_cache>;
 			operating-points-v2 = <&cpu0_opp_table>;
+			sched-energy-costs = <&RK3328_CPU_COST_0 &RK3328_CLUSTER_COST_0>;
+		};
+		l2_cache: l2-cache0 {
+			compatible = "cache";
 		};
 	};
 
@@ -161,7 +172,60 @@
 			opp-microvolt-L1 = <1300000 1300000 1350000>;
 			clock-latency-ns = <40000>;
 		};
+		opp-1416000000 {
+			opp-hz = /bits/ 64 <1416000000>;
+			opp-microvolt = <1350000 1350000 1350000>;
+			opp-microvolt-L0 = <1350000 1350000 1350000>;
+			opp-microvolt-L1 = <1300000 1300000 1350000>;
+			clock-latency-ns = <40000>;
+		};
+		opp-1512000000 {
+			opp-hz = /bits/ 64 <1512000000>;
+			opp-microvolt = <1350000 1350000 1350000>;
+			opp-microvolt-L0 = <1350000 1350000 1350000>;
+			opp-microvolt-L1 = <1300000 1300000 1350000>;
+			clock-latency-ns = <40000>;
+		};
 	};
+
+        energy-costs {
+                RK3328_CPU_COST_0: rk3328-core-cost0 {
+                        busy-cost-data = <
+                                276    86       /*  408M */
+                                406    118      /*  600M */
+                                552    166      /*  816M */
+                                682    226      /* 1008M */
+                                812    309      /* 1200M */
+                                878    371      /* 1296M */
+                                959    446      /* 1416M */
+                                1024   513      /* 1512M */
+                        >;
+                        idle-cost-data = <
+                                   6
+                                   6
+                                   0
+                        >;
+                };
+
+               RK3328_CLUSTER_COST_0: rk3328-cluster-cost0 {
+                       busy-cost-data = <
+                               276    17       /*  408M */
+                               406    24       /*  600M */
+                               552    33       /*  816M */
+                               682    45       /* 1008M */
+                               812    62       /* 1200M */
+                               878    74       /* 1200M */
+                               959    89       /* 1416M */
+                               1024   103      /* 1512M */
+                       >;
+                       idle-cost-data = <
+                               56
+                               56
+                               56
+                       >;
+               };
+
+        };
 
 	arm-pmu {
 		compatible = "arm,cortex-a53-pmu";
@@ -305,6 +369,18 @@
 			     &tsp_fail
 			     &tsp_valid>;
 		status = "disabled";
+	};
+
+	crypto: crypto-controller@ff060000 {
+		compatible = "rockchip,rk3328-crypto", "rockchip,rk3288-crypto";
+		reg = <0x0 0xff060000 0x0 0x4000>;
+		interrupts = <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru HCLK_CRYPTO_MST>, <&cru HCLK_CRYPTO_SLV>,
+			 <&cru SCLK_CRYPTO>, <&cru ACLK_DMAC>;
+		clock-names = "aclk", "hclk", "sclk", "apb_pclk";
+		resets = <&cru SRST_CRYPTO>;
+		reset-names = "crypto-rst";
+		status = "okay";
 	};
 
 	grf: syscon@ff100000 {
