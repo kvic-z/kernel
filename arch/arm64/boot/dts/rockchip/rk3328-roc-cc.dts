@@ -153,8 +153,6 @@
 		gpios = <&gpio0 25 GPIO_ACTIVE_HIGH>;
 		states = <1800000 0x1
 				  3300000 0x0>;
-		//pinctrl-names = "default";
-		//pinctrl-0 = <&sd_pwr_1800_sel>;
 		regulator-name = "vccio_sd";
 		regulator-type = "voltage";
 		regulator-min-microvolt = <1800000>;
@@ -659,16 +657,6 @@
 			rockchip,pins = <0 0 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
-
-/*
-  sdmmcio-regulator {
-    sd_pwr_1800_sel: sd-pwr-1800-sel {
-			rockchip,pins = 
-        <0 25 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
-  };
-*/
-
 };
 
 &rkvdec {
