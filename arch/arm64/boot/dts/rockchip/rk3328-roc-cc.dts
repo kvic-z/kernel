@@ -860,3 +860,7 @@
 			<0xb5	KEY_BACKSPACE>;
 	};
 };
+
+&threshold {
+	temperature = <75000>; /* millicelsius */
+};
