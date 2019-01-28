@@ -223,6 +223,15 @@
 			mode = <0x00>;
 		};
 	};
+
+	pps {
+		compatible = "pps-gpio";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_pps>;
+		gpios = <&gpio3 5 GPIO_ACTIVE_HIGH>;
+	//	assert-falling-edge;
+	};
+
 };
 
 &codec {
@@ -655,6 +664,13 @@
 	usb3 {
 		usb30_host_drv: usb30-host-drv {
 			rockchip,pins = <0 0 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	pps {
+		pinctrl_pps: pinctrl-pps {
+		rockchip,pins =
+			<3 RK_PA5 RK_FUNC_GPIO &pcfg_pull_none>; /* rts pin */
 		};
 	};
 };
