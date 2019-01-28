@@ -1429,7 +1429,7 @@ static void vop_crtc_disable(struct drm_crtc *crtc)
 		vop->is_iommu_enabled = false;
 	}
 
-	pm_runtime_put(vop->dev);
+	pm_runtime_put_sync(vop->dev);
 	clk_disable_unprepare(vop->dclk);
 	clk_disable_unprepare(vop->aclk);
 	clk_disable_unprepare(vop->hclk);
@@ -1704,10 +1704,11 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 	if (VOP_WIN_SUPPORT(vop, win, vact_st_end_info)) {
 		if (win->feature & WIN_FEATURE_PDAF_AFTER_VBLANK)
 			ex_vact_st = dest->y1 + mode->crtc_vtotal -
-				mode->crtc_vsync_start + mode->crtc_vdisplay;
+				mode->crtc_vsync_start +
+				mode->crtc_vdisplay + 1;
 		else
 			ex_vact_st = dest->y1 + mode->crtc_vsync_end -
-				mode->crtc_vsync_start;
+				mode->crtc_vsync_start + 1;
 		ex_vact_end = ex_vact_st + drm_rect_height(dest);
 		VOP_WIN_SET(vop, win, vact_st_end_info,
 			    ex_vact_st << 16 | ex_vact_end);
@@ -2345,7 +2346,8 @@ static size_t vop_plane_line_bandwidth(struct drm_plane_state *pstate)
 	int vskiplines = scl_get_vskiplines(src_height, dest_height);
 	size_t bandwidth;
 
-	if (!src_width || !src_height || !dest_width || !dest_height)
+	if (src_width <= 0 || src_height <= 0 || dest_width <= 0 ||
+	    dest_height <= 0)
 		return 0;
 
 	bandwidth = src_width * bpp / 8;
@@ -2384,7 +2386,8 @@ static u64 vop_calc_max_bandwidth(struct vop_bandwidth *bw, int start,
 }
 
 static size_t vop_crtc_bandwidth(struct drm_crtc *crtc,
-				 struct drm_crtc_state *crtc_state)
+				 struct drm_crtc_state *crtc_state,
+				 unsigned int *plane_num_total)
 {
 	struct drm_atomic_state *state = crtc_state->state;
 	struct drm_display_mode *adjusted_mode = &crtc_state->adjusted_mode;
@@ -2406,6 +2409,8 @@ static size_t vop_crtc_bandwidth(struct drm_crtc *crtc,
 			continue;
 		plane_num++;
 	}
+	if (plane_num_total)
+		*plane_num_total += plane_num;
 	pbandwidth = kmalloc_array(plane_num, sizeof(*pbandwidth),
 				   GFP_KERNEL);
 	if (!pbandwidth)
@@ -2544,6 +2549,7 @@ static void vop_update_csc(struct drm_crtc *crtc)
 		break;
 	case MEDIA_BUS_FMT_RGB666_1X18:
 	case MEDIA_BUS_FMT_RGB666_1X24_CPADHI:
+	case MEDIA_BUS_FMT_RGB666_1X7X3_SPWG:
 		VOP_CTRL_SET(vop, dither_down_en, 1);
 		VOP_CTRL_SET(vop, dither_down_mode, RGB888_TO_RGB666);
 		break;
@@ -2558,6 +2564,8 @@ static void vop_update_csc(struct drm_crtc *crtc)
 		VOP_CTRL_SET(vop, pre_dither_down_en, 0);
 		break;
 	case MEDIA_BUS_FMT_RGB888_1X24:
+	case MEDIA_BUS_FMT_RGB888_1X7X4_SPWG:
+	case MEDIA_BUS_FMT_RGB888_1X7X4_JEIDA:
 	default:
 		VOP_CTRL_SET(vop, dither_down_en, 0);
 		VOP_CTRL_SET(vop, pre_dither_down_en, 0);
@@ -2698,6 +2706,7 @@ static void vop_crtc_enable(struct drm_crtc *crtc)
 	}
 
 	switch (s->output_type) {
+	case DRM_MODE_CONNECTOR_DPI:
 	case DRM_MODE_CONNECTOR_LVDS:
 		VOP_CTRL_SET(vop, rgb_en, 1);
 		VOP_CTRL_SET(vop, rgb_pin_pol, val);
@@ -3273,10 +3282,18 @@ static void vop_tv_config_update(struct drm_crtc *crtc,
 
 	if (!s->tv_state)
 		return;
-
+	/*
+	 * The BCSH only need to config once except one of the following
+	 * condition changed:
+	 *   1. tv_state: include brightness,contrast,saturation and hue;
+	 *   2. yuv_overlay: it is related to BCSH r2y module;
+	 *   3. mode_update: it is indicate mode change and resume from suspend;
+	 *   4. bcsh_en: control the BCSH module enable or disable state;
+	 *   5. bus_format: it is related to BCSH y2r module;
+	 */
 	if (!memcmp(s->tv_state,
 		    &vop->active_tv_state, sizeof(*s->tv_state)) &&
-	    s->yuv_overlay == old_s->yuv_overlay &&
+	    s->yuv_overlay == old_s->yuv_overlay && vop->mode_update &&
 	    s->bcsh_en == old_s->bcsh_en && s->bus_format == old_s->bus_format)
 		return;
 
@@ -3550,8 +3567,8 @@ static void vop_crtc_atomic_flush(struct drm_crtc *crtc,
 	spin_lock_irq(&crtc->dev->event_lock);
 	if (crtc->state->event) {
 		WARN_ON(drm_crtc_vblank_get(crtc) != 0);
-		WARN_ON(vop->event);
-
+		if (s->pdaf_work_mode != VOP_HOLD_MODE)
+			WARN_ON(vop->event);
 		vop->event = crtc->state->event;
 		crtc->state->event = NULL;
 	}
@@ -3610,7 +3627,7 @@ static void vop_crtc_reset(struct drm_crtc *crtc)
 	s->right_margin = 100;
 	s->top_margin = 100;
 	s->bottom_margin = 100;
-	s->pdaf_work_mode = VOP_NORMAL_MODE;
+	s->pdaf_work_mode = VOP_HOLD_MODE;
 	s->pdaf_type = VOP_PDAF_TYPE_VBLANK;
 }
 
@@ -4484,34 +4501,31 @@ static int vop_bind(struct device *dev, struct device *master, void *data)
 		return -ENOMEM;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "gamma_lut");
-	vop->lut_regs = devm_ioremap_resource(dev, res);
-	if (IS_ERR(vop->lut_regs)) {
-		dev_warn(vop->dev, "failed to get vop lut registers\n");
-		vop->lut_regs = NULL;
-	}
-	if (vop->lut_regs) {
+	if (res) {
 		vop->lut_len = resource_size(res) / sizeof(*vop->lut);
 		if (vop->lut_len != 256 && vop->lut_len != 1024) {
 			dev_err(vop->dev, "unsupport lut sizes %d\n",
 				vop->lut_len);
 			return -EINVAL;
 		}
+
+		vop->lut_regs = devm_ioremap_resource(dev, res);
+		if (IS_ERR(vop->lut_regs))
+			return PTR_ERR(vop->lut_regs);
 	}
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "cabc_lut");
-	vop->cabc_lut_regs = devm_ioremap_resource(dev, res);
-	if (IS_ERR(vop->cabc_lut_regs)) {
-		dev_warn(vop->dev, "failed to get vop cabc lut registers\n");
-		vop->cabc_lut_regs = NULL;
-	}
-
-	if (vop->cabc_lut_regs) {
+	if (res) {
 		vop->cabc_lut_len = resource_size(res) >> 2;
 		if (vop->cabc_lut_len != 128) {
 			dev_err(vop->dev, "unsupport cabc lut sizes %d\n",
 				vop->cabc_lut_len);
 			return -EINVAL;
 		}
+
+		vop->cabc_lut_regs = devm_ioremap_resource(dev, res);
+		if (IS_ERR(vop->cabc_lut_regs))
+			return PTR_ERR(vop->cabc_lut_regs);
 	}
 
 	vop->grf = syscon_regmap_lookup_by_phandle(dev->of_node,
@@ -4577,8 +4591,8 @@ static int vop_bind(struct device *dev, struct device *master, void *data)
 
 	mcu = of_get_child_by_name(dev->of_node, "mcu-timing");
 	if (!mcu) {
-		DRM_INFO("no mcu-timing node found in %s\n",
-			 dev->of_node->full_name);
+		dev_dbg(dev, "no mcu-timing node found in %s\n",
+			dev->of_node->full_name);
 	} else {
 		u32 val;
 

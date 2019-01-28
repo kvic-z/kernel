@@ -81,6 +81,7 @@
 static const struct iommu_ops rk_iommu_ops;
 
 static LIST_HEAD(iommu_dev_list);
+static const struct iommu_ops rk_iommu_ops;
 
 struct rk_iommu_domain {
 	struct list_head iommus;
@@ -104,6 +105,7 @@ struct rk_iommu {
 	struct iommu_domain *domain; /* domain to which iommu is attached */
 	struct clk *aclk; /* aclock belong to master */
 	struct clk *hclk; /* hclock belong to master */
+	struct clk *sclk; /* sclock belong to master */
 	struct list_head dev_node;
 };
 
@@ -277,6 +279,9 @@ static void rk_iommu_power_on(struct rk_iommu *iommu)
 		clk_enable(iommu->hclk);
 	}
 
+	if (iommu->sclk)
+		clk_enable(iommu->sclk);
+
 	pm_runtime_get_sync(iommu->dev);
 }
 
@@ -288,6 +293,9 @@ static void rk_iommu_power_off(struct rk_iommu *iommu)
 		clk_disable(iommu->aclk);
 		clk_disable(iommu->hclk);
 	}
+
+	if (iommu->sclk)
+		clk_disable(iommu->sclk);
 }
 
 static u32 rk_iova_dte_index(dma_addr_t iova)
@@ -1091,6 +1099,7 @@ static struct iommu_domain *rk_iommu_domain_alloc(unsigned type)
 	rk_domain->domain.geometry.aperture_start = 0;
 	rk_domain->domain.geometry.aperture_end   = DMA_BIT_MASK(32);
 	rk_domain->domain.geometry.force_aperture = true;
+	rk_domain->domain.ops = &rk_iommu_ops;
 
 	return &rk_domain->domain;
 
@@ -1309,10 +1318,19 @@ static int rk_iommu_probe(struct platform_device *pdev)
 		iommu->hclk = NULL;
 	}
 
+	iommu->sclk = devm_clk_get(dev, "sclk");
+	if (IS_ERR(iommu->sclk)) {
+		dev_info(dev, "can't get sclk\n");
+		iommu->sclk = NULL;
+	}
+
 	if (iommu->aclk && iommu->hclk) {
 		clk_prepare(iommu->aclk);
 		clk_prepare(iommu->hclk);
 	}
+
+	if (iommu->sclk)
+		clk_prepare(iommu->sclk);
 
 	pm_runtime_enable(iommu->dev);
 	pm_runtime_get_sync(iommu->dev);
