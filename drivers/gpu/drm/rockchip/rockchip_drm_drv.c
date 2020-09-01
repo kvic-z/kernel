@@ -1944,6 +1944,8 @@ static int rockchip_drm_platform_remove(struct platform_device *pdev)
 	return 0;
 }
 
+/* yipst: .shutdown and rockchip_drm_platform_shutdown() removed in patch 4.4.169
+	Don't know the reason. We keep it as is for now */
 static void rockchip_drm_platform_shutdown(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
