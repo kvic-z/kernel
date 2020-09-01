@@ -487,6 +487,7 @@ static int dwc2_driver_remove(struct platform_device *dev)
 	if (hsotg->gadget_enabled) {
 		retval = usb_add_gadget_udc(hsotg->dev, &hsotg->gadget);
 		if (retval) {
+			hsotg->gadget.udc = NULL;
 			dwc2_hsotg_remove(hsotg);
 			goto error;
 		}
@@ -691,7 +692,8 @@ static int dwc2_driver_probe(struct platform_device *dev)
 error:
 	pm_runtime_put_sync(hsotg->dev);
 	pm_runtime_disable(hsotg->dev);
-	dwc2_lowlevel_hw_disable(hsotg);
+	if (hsotg->dr_mode != USB_DR_MODE_PERIPHERAL)
+		dwc2_lowlevel_hw_disable(hsotg);
 	return retval;
 }
 
