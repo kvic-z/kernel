@@ -120,3 +120,7 @@ all.config
 
 # fetched Android config fragments
 android/configs/android-*.cfg
+
+# yipst: don't know who create these two
+pullsym.sh
+stream
