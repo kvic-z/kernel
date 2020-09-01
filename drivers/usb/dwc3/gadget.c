@@ -1767,6 +1767,9 @@ static int __dwc3_gadget_start(struct dwc3 *dwc)
 
 	dwc3_gadget_setup_nump(dwc);
 
+	if (!dwc->gadget_driver)
+		return 0;
+
 	/* Start with SuperSpeed Default */
 	dwc3_gadget_ep0_desc.wMaxPacketSize = cpu_to_le16(512);
 
