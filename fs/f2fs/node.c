@@ -543,6 +543,8 @@ int f2fs_get_node_info(struct f2fs_sb_info *sbi, nid_t nid,
 
 	memset(&ne, 0, sizeof(struct f2fs_nat_entry));
 
+	down_write(&nm_i->nat_tree_lock);
+
 	/* Check current segment summary */
 	down_read(&curseg->journal_rwsem);
 	i = f2fs_lookup_journal_in_cursum(journal, NAT_JOURNAL, nid, 0);
@@ -1549,6 +1551,12 @@ static int __write_node_page(struct page *page, bool atomic, bool *submitted,
 	if (atomic && !test_opt(sbi, NOBARRIER))
 		fio.op_flags |= WRITE_FLUSH_FUA;
 
+	if (__is_valid_data_blkaddr(ni.blk_addr) &&
+		!f2fs_is_valid_blkaddr(sbi, ni.blk_addr, DATA_GENERIC)) {
+		up_read(&sbi->node_write);
+		goto redirty_out;
+	}
+
 	set_page_writeback(page);
 	ClearPageError(page);
 
@@ -2270,6 +2278,8 @@ static int __f2fs_build_free_nids(struct f2fs_sb_info *sbi,
 	/* readahead nat pages to be scanned */
 	f2fs_ra_meta_pages(sbi, NAT_BLOCK_OFFSET(nid), FREE_NID_PAGES,
 							META_NAT, true);
+
+	down_read(&nm_i->nat_tree_lock);
 
 	down_read(&nm_i->nat_tree_lock);
 
