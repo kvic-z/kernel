@@ -620,7 +620,7 @@ int mali_platform_device_init(struct platform_device *pdev)
 
 	mali_platform_device_add_config(pdev);
 
-	D("to add platform_specific_data to platform_device_of_mali.");
+//	D("to add platform_specific_data to platform_device_of_mali.");
 	err = platform_device_add_data(pdev,
 				       &mali_gpu_data,
 				       sizeof(mali_gpu_data));
