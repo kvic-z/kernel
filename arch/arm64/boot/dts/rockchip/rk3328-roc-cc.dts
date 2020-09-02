@@ -722,6 +722,9 @@
 };
 
 &tsadc {
+	rockchip,hw-tshut-mode = <0>;
+	rockchip,hw-tshut-polarity = <0>;
+	rockchip,hw-tshut-temp = <110000>;
 	status = "okay";
 };
 
