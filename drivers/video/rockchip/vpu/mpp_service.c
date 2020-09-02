@@ -158,7 +158,7 @@ static int mpp_probe(struct platform_device *pdev)
 				       devm_kzalloc(dev, sizeof(*pservice),
 						    GFP_KERNEL);
 
-	dev_info(dev, "%s enter\n", __func__);
+	//dev_info(dev, "%s enter\n", __func__);
 
 	pservice->dev = dev;
 
