@@ -1597,7 +1597,7 @@ static int rockchip_thermal_probe(struct platform_device *pdev)
 	atomic_notifier_chain_register(&panic_notifier_list,
 				       &rockchip_thermal_panic_block);
 
-	dev_info(&pdev->dev, "tsadc is probed successfully!\n");
+	dev_info(&pdev->dev, "tsadc successfully initialized\n");
 
 	return 0;
 
