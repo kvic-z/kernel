@@ -701,7 +701,7 @@
 	cap-sd-highspeed;
 	sd-uhs-sdr104;
 	disable-wp;
-	clock-freq-min-max = <400000 212000000>;
+	max-frequency = <208000000>;
 	clocks = <&cru HCLK_SDMMC>, <&cru SCLK_SDMMC>,
 			 <&cru SCLK_SDMMC_DRV>, <&cru SCLK_SDMMC_SAMPLE>;
 	clock-names = "biu", "ciu", "ciu-drive", "ciu-sample";
