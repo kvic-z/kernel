@@ -404,7 +404,7 @@ static int rk_pwm_probe(struct platform_device *pdev)
 	int pwm_freq;
 	int count;
 
-	pr_err(".. rk pwm remotectl v1.1 init\n");
+	//pr_err(".. rk pwm remotectl v1.1 init\n");
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!r) {
 		dev_err(&pdev->dev, "no memory resources defined\n");
@@ -571,6 +571,7 @@ static int rk_pwm_probe(struct platform_device *pdev)
 	}
 	sip_smc_remotectl_config(REMOTECTL_ENABLE, 1);
 end:
+	dev_info(&pdev->dev, "successfully initialized\n");
 	return 0;
 error_irq:
 	wake_lock_destroy(&ddata->remotectl_wake_lock);
